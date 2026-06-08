@@ -240,13 +240,13 @@ function New-TelemetryRow($item, $isTask) {
     $border.Padding       = [System.Windows.Thickness]::new(0,6,10,6)
 
     $grid = New-Object System.Windows.Controls.Grid
-    foreach ($w in @(6,1,[System.Windows.GridLength]::Auto)) {
-        $cd = New-Object System.Windows.Controls.ColumnDefinition
-        if ($w -is [int]) { $cd.Width = [System.Windows.GridLength]::new($w) }
-        elseif ($w -eq 1) { $cd.Width = [System.Windows.GridLength]::new(1,[System.Windows.GridUnitType]::Star) }
-        else               { $cd.Width = $w }
-        $grid.ColumnDefinitions.Add($cd)
-    }
+    # Col 0: barra de riesgo (6px fija), Col 1: contenido (Star), Col 2: boton (Auto)
+    $colR = New-Object System.Windows.Controls.ColumnDefinition; $colR.Width = [System.Windows.GridLength]::new(6)
+    $colC = New-Object System.Windows.Controls.ColumnDefinition; $colC.Width = [System.Windows.GridLength]::new(1,[System.Windows.GridUnitType]::Star)
+    $colB = New-Object System.Windows.Controls.ColumnDefinition; $colB.Width = [System.Windows.GridLength]::Auto
+    $grid.ColumnDefinitions.Add($colR) | Out-Null
+    $grid.ColumnDefinitions.Add($colC) | Out-Null
+    $grid.ColumnDefinitions.Add($colB) | Out-Null
     # Risk bar
     $bar2 = New-Object System.Windows.Controls.Border
     $bar2.Background   = [System.Windows.Media.BrushConverter]::new().ConvertFromString($riskClr)
@@ -892,6 +892,14 @@ try {
     if ($lblA) {
         $lblA.Text = if ($script:IsAdmin) { '● Administrador' } else { '● Usuario estandar — funciones limitadas' }
         $lblA.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($(if ($script:IsAdmin) { '#2ECC71' } else { '#F39C12' }))
+    }
+} catch {}
+
+# Icono de ventana (desde icon.ico si existe)
+try {
+    $icoPath = Join-Path $script:AppDir 'icon.ico'
+    if (Test-Path $icoPath) {
+        $script:window.Icon = [System.Windows.Media.Imaging.BitmapImage]::new([Uri]::new($icoPath))
     }
 } catch {}
 

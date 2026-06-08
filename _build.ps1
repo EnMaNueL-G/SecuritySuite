@@ -21,37 +21,95 @@ if (-not (Get-Module -ListAvailable -Name ps2exe)) {
     Install-Module ps2exe -Scope CurrentUser -Force -AllowClobber
 }
 
-# Generar icono (escudo rojo sobre fondo oscuro)
+# Generar icono — escudo moderno con candado
 Write-Host "Generando icono..." -ForegroundColor Cyan
 Add-Type -AssemblyName System.Drawing
-$bmp = New-Object System.Drawing.Bitmap(48, 48)
-$g   = [System.Drawing.Graphics]::FromImage($bmp)
-$g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+
+# Crear en 256x256 para calidad, luego redimensionar a 48x48 para .ico
+$hi  = New-Object System.Drawing.Bitmap(256, 256)
+$g   = [System.Drawing.Graphics]::FromImage($hi)
+$g.SmoothingMode   = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+$g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAlias
 $g.Clear([System.Drawing.Color]::FromArgb(10, 10, 26))
 
-# Escudo (forma de escudo con bezier)
-$shieldPath = New-Object System.Drawing.Drawing2D.GraphicsPath
-$pts = [System.Drawing.PointF[]](
-    [System.Drawing.PointF]::new(24, 6),
-    [System.Drawing.PointF]::new(8,  12),
-    [System.Drawing.PointF]::new(8,  26),
-    [System.Drawing.PointF]::new(24, 44),
-    [System.Drawing.PointF]::new(40, 26),
-    [System.Drawing.PointF]::new(40, 12)
-)
-$shieldPath.AddPolygon($pts)
-$g.FillPath([System.Drawing.Brushes]::Firebrick, $shieldPath)
-$g.DrawPath((New-Object System.Drawing.Pen([System.Drawing.Color]::OrangeRed, 1.5)), $shieldPath)
+# Fondo circular
+$bgBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(28, 28, 48))
+$g.FillEllipse($bgBrush, 10, 10, 236, 236)
+$bgBrush.Dispose()
 
-# Check mark blanco
-$pen = New-Object System.Drawing.Pen([System.Drawing.Color]::White, 3)
-$pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
-$pen.EndCap   = [System.Drawing.Drawing2D.LineCap]::Round
-$g.DrawLine($pen, 16, 26, 22, 33)
-$g.DrawLine($pen, 22, 33, 33, 18)
-$pen.Dispose()
+# Escudo — forma clasica con bezier (top rounded, bottom pointed)
+$sp = New-Object System.Drawing.Drawing2D.GraphicsPath
+$sp.AddBezier(
+    [System.Drawing.PointF]::new(128,  30),   # top-center
+    [System.Drawing.PointF]::new(200,  30),   # control top-right
+    [System.Drawing.PointF]::new(215,  80),   # control right-top
+    [System.Drawing.PointF]::new(215, 120)    # right-mid
+)
+$sp.AddBezier(
+    [System.Drawing.PointF]::new(215, 120),
+    [System.Drawing.PointF]::new(215, 170),
+    [System.Drawing.PointF]::new(175, 200),
+    [System.Drawing.PointF]::new(128, 226)    # bottom-tip
+)
+$sp.AddBezier(
+    [System.Drawing.PointF]::new(128, 226),
+    [System.Drawing.PointF]::new(81,  200),
+    [System.Drawing.PointF]::new(41,  170),
+    [System.Drawing.PointF]::new(41,  120)
+)
+$sp.AddBezier(
+    [System.Drawing.PointF]::new(41,  120),
+    [System.Drawing.PointF]::new(41,   80),
+    [System.Drawing.PointF]::new(56,   30),
+    [System.Drawing.PointF]::new(128,  30)
+)
+$sp.CloseFigure()
+
+# Fill escudo — gradiente oscuro rojo
+$gradBrush = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
+    [System.Drawing.Point]::new(128, 30),
+    [System.Drawing.Point]::new(128, 226),
+    [System.Drawing.Color]::FromArgb(120, 30, 30),
+    [System.Drawing.Color]::FromArgb(60, 10, 10)
+)
+$g.FillPath($gradBrush, $sp)
+$gradBrush.Dispose()
+
+# Borde del escudo
+$borderPen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(255, 68, 68), 4)
+$g.DrawPath($borderPen, $sp)
+$borderPen.Dispose(); $sp.Dispose()
+
+# Candado — arco (shackle) parte superior
+$shacklePen = New-Object System.Drawing.Pen([System.Drawing.Color]::White, 14)
+$shacklePen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
+$shacklePen.EndCap   = [System.Drawing.Drawing2D.LineCap]::Round
+$g.DrawArc($shacklePen, 90, 80, 76, 76, 180, 180)
+$shacklePen.Dispose()
+
+# Cuerpo del candado
+$bodyBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
+$g.FillRectangle($bodyBrush, 88, 128, 80, 62)
+$bodyBrush.Dispose()
+# Interior oscuro del cuerpo
+$innerBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(30,30,50))
+$g.FillRectangle($innerBrush, 96, 136, 64, 46)
+$innerBrush.Dispose()
+
+# Agujero de la cerradura
+$g.FillEllipse([System.Drawing.Brushes]::White, 115, 144, 26, 26)
+$dotBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(30,30,50))
+$g.FillEllipse($dotBrush, 120, 149, 16, 16)
+$dotBrush.Dispose()
 
 $g.Dispose()
+
+# Redimensionar a 48x48
+$bmp = New-Object System.Drawing.Bitmap(48, 48)
+$gs  = [System.Drawing.Graphics]::FromImage($bmp)
+$gs.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+$gs.DrawImage($hi, 0, 0, 48, 48)
+$gs.Dispose(); $hi.Dispose()
 
 # Convertir a ICO
 $icon = [System.Drawing.Icon]::FromHandle($bmp.GetHicon())
