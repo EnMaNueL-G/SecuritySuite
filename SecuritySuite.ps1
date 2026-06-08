@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 <#
-  SecuritySuite v1.0.0
+  SecuritySuite v1.0.2
   Suite de seguridad y privacidad para Windows 10/11
   Enmanuel Gil — https://github.com/EnMaNueL-G
   Sin ads | Sin telemetria | Codigo abierto | Gratuito
@@ -802,7 +802,7 @@ function Refresh-FirewallUI() {
         <TextBlock x:Name="lblStatus" Text="Listo"/>
       </StatusBarItem>
       <StatusBarItem HorizontalAlignment="Right">
-        <TextBlock Text="SecuritySuite v1.0.1"/>
+        <TextBlock Text="SecuritySuite v1.0.2"/>
       </StatusBarItem>
     </StatusBar>
   </Grid>
@@ -903,12 +903,14 @@ try {
     }
 } catch {}
 
-# ── Inicializar UI ────────────────────────────────────────────────────────────
-try { Refresh-TelemetryUI    } catch {}
-try { Refresh-StartupAuditUI } catch {}
-try { Refresh-CleanerUI      } catch {}
-try { Refresh-FirewallUI     } catch {}
-try { Update-Score           } catch {}
+# ── Inicializar UI al cargar (ventana aparece primero, datos despues) ─────────
+$script:window.Add_ContentRendered({
+    try { Refresh-TelemetryUI    } catch {}
+    try { Refresh-StartupAuditUI } catch {}
+    try { Refresh-CleanerUI      } catch {}
+    try { Refresh-FirewallUI     } catch {}
+    try { Update-Score           } catch {}
+})
 
 # ── Mostrar ventana ───────────────────────────────────────────────────────────
 $script:window.ShowDialog() | Out-Null

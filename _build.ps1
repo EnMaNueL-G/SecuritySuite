@@ -131,18 +131,18 @@ Invoke-ps2exe `
     -title      "SecuritySuite" `
     -description "Suite de seguridad y privacidad para Windows" `
     -company    "EnMaNueL-G" `
-    -version    "1.0.1.0"
+    -version    "1.0.2.0"
 
 if (Test-Path "$PSScriptRoot\SecuritySuite.exe") {
     $size = [Math]::Round((Get-Item "$PSScriptRoot\SecuritySuite.exe").Length / 1KB, 0)
     Write-Host "EXE generado: SecuritySuite.exe ($size KB)" -ForegroundColor Green
 
     # Crear ZIP
-    $zipPath = "$PSScriptRoot\SecuritySuite-v1.0.1.zip"
+    $zipPath = "$PSScriptRoot\SecuritySuite-v1.0.2.zip"
     if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
     Compress-Archive -Path "$PSScriptRoot\SecuritySuite.exe","$PSScriptRoot\SecuritySuite.bat" -DestinationPath $zipPath
     $zipSize = [Math]::Round((Get-Item $zipPath).Length / 1KB, 0)
-    Write-Host "ZIP generado: SecuritySuite-v1.0.0.zip ($zipSize KB)" -ForegroundColor Green
+    Write-Host "ZIP generado: SecuritySuite-v1.0.2.zip ($zipSize KB)" -ForegroundColor Green
 } else {
     Write-Host "ERROR: No se genero el EXE" -ForegroundColor Red
     exit 1
