@@ -802,7 +802,7 @@ function Refresh-FirewallUI() {
         <TextBlock x:Name="lblStatus" Text="Listo"/>
       </StatusBarItem>
       <StatusBarItem HorizontalAlignment="Right">
-        <TextBlock Text="SecuritySuite v1.0.0"/>
+        <TextBlock Text="SecuritySuite v1.0.1"/>
       </StatusBarItem>
     </StatusBar>
   </Grid>
