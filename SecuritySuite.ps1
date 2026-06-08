@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 <#
-  SecuritySuite v1.0.2
+  SecuritySuite v1.0.3
   Suite de seguridad y privacidad para Windows 10/11
   Enmanuel Gil — https://github.com/EnMaNueL-G
   Sin ads | Sin telemetria | Codigo abierto | Gratuito
@@ -77,35 +77,71 @@ function Get-C($n) { try { $script:window.FindName($n) } catch { $null } }
 function On($c,$e,$sb) { if ($null -ne $c) { try { $c."Add_$e"($sb) } catch {} } }
 function SafeLog($msg) { try { $l = Get-C 'lblStatus'; if ($l) { $l.Text = [string]$msg } } catch {} }
 
+# ── Cache de estado (evita 16 queries individuales WMI/ScheduledTask) ─────────
+$script:SvcCache  = @{}   # Name -> StartMode
+$script:TaskCache = @{}   # Path -> State string
+
+function Refresh-StateCache() {
+    # --- Servicios: UN solo query WMI batch en lugar de 7 individuales --------
+    $names = $script:TelSvcs | ForEach-Object { $_.Name }
+    $filter = ($names | ForEach-Object { "Name='$_'" }) -join ' OR '
+    try {
+        Get-WmiObject Win32_Service -Filter $filter -EA SilentlyContinue |
+            ForEach-Object { $script:SvcCache[$_.Name] = $_.StartMode }
+    } catch {}
+    foreach ($n in $names) { if (-not $script:SvcCache.ContainsKey($n)) { $script:SvcCache[$n] = 'NoEncontrado' } }
+
+    # --- Tareas: UN solo Get-ScheduledTask batch en lugar de 9 individuales ---
+    try {
+        $allTasks = Get-ScheduledTask -EA SilentlyContinue
+        foreach ($t in $script:TelTasks) {
+            $parent = (Split-Path $t.Path -Parent).TrimEnd('\') + '\'
+            $leaf   = Split-Path $t.Path -Leaf
+            $found  = $allTasks | Where-Object { $_.TaskPath -eq $parent -and $_.TaskName -eq $leaf } | Select-Object -First 1
+            $script:TaskCache[$t.Path] = if ($found) { $found.State.ToString() } else { 'NoEncontrado' }
+        }
+    } catch {
+        foreach ($t in $script:TelTasks) { $script:TaskCache[$t.Path] = 'NoEncontrado' }
+    }
+}
+
 # ── Funciones: Servicios ──────────────────────────────────────────────────────
 function Get-SvcStartType($name) {
-    try { return (Get-WmiObject Win32_Service -Filter "Name='$name'" -EA Stop).StartMode }
-    catch { return 'NoEncontrado' }
+    if ($script:SvcCache.ContainsKey($name)) { return $script:SvcCache[$name] }
+    try {
+        $r = (Get-WmiObject Win32_Service -Filter "Name='$name'" -EA Stop).StartMode
+        $script:SvcCache[$name] = $r; return $r
+    } catch { $script:SvcCache[$name] = 'NoEncontrado'; return 'NoEncontrado' }
 }
 function Set-SvcDisabled($name) {
-    try { Stop-Service $name -Force -EA Stop; Set-Service $name -StartupType Disabled -EA Stop; return $true }
+    try { Stop-Service $name -Force -EA Stop; Set-Service $name -StartupType Disabled -EA Stop
+          $script:SvcCache[$name] = 'Disabled'; return $true }
     catch { return $false }
 }
 function Set-SvcEnabled($name) {
-    try { Set-Service $name -StartupType Manual -EA Stop; return $true }
+    try { Set-Service $name -StartupType Manual -EA Stop
+          $script:SvcCache[$name] = 'Manual'; return $true }
     catch { return $false }
 }
 
 # ── Funciones: Tareas programadas ────────────────────────────────────────────
 function Get-TaskStatusStr($path) {
+    if ($script:TaskCache.ContainsKey($path)) { return $script:TaskCache[$path] }
     try {
         $parent = Split-Path $path -Parent
         $leaf   = Split-Path $path -Leaf
-        $t = Get-ScheduledTask -TaskPath $parent -TaskName $leaf -EA Stop
-        return $t.State.ToString()
-    } catch { return 'NoEncontrado' }
+        $r = (Get-ScheduledTask -TaskPath $parent -TaskName $leaf -EA Stop).State.ToString()
+        $script:TaskCache[$path] = $r; return $r
+    } catch { $script:TaskCache[$path] = 'NoEncontrado'; return 'NoEncontrado' }
 }
 function Set-TaskDisabled($path) {
-    try { Disable-ScheduledTask -TaskPath (Split-Path $path -Parent) -TaskName (Split-Path $path -Leaf) -EA Stop; return $true }
+    try { Disable-ScheduledTask -TaskPath (Split-Path $path -Parent) -TaskName (Split-Path $path -Leaf) -EA Stop
+          $script:TaskCache[$path] = 'Disabled'; return $true }
     catch { return $false }
 }
 function Set-TaskEnabled($path) {
-    try { Enable-ScheduledTask -TaskPath (Split-Path $path -Parent) -TaskName (Split-Path $path -Leaf) -EA Stop; return $true }
+    try { Enable-ScheduledTask -TaskPath (Split-Path $path -Parent) -TaskName (Split-Path $path -Leaf) -EA Stop
+          $script:TaskCache[$path] = 'Ready'; return $true }
     catch { return $false }
 }
 
@@ -324,6 +360,7 @@ function Refresh-TelemetryUI() {
     $panel = Get-C 'telemetryList'
     if (-not $panel) { return }
     $panel.Children.Clear()
+    Refresh-StateCache   # batch: 2 queries en vez de 16
 
     foreach ($grp in @(@{Label="SERVICIOS ($($script:TelSvcs.Count))"; Items=$script:TelSvcs; IsTask=$false},
                        @{Label="TAREAS PROGRAMADAS ($($script:TelTasks.Count))"; Items=$script:TelTasks; IsTask=$true})) {
@@ -802,7 +839,7 @@ function Refresh-FirewallUI() {
         <TextBlock x:Name="lblStatus" Text="Listo"/>
       </StatusBarItem>
       <StatusBarItem HorizontalAlignment="Right">
-        <TextBlock Text="SecuritySuite v1.0.2"/>
+        <TextBlock Text="SecuritySuite v1.0.3"/>
       </StatusBarItem>
     </StatusBar>
   </Grid>
